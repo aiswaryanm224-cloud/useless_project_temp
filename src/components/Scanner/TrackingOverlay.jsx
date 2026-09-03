@@ -2,16 +2,30 @@ import React from 'react';
 
 /**
  * Tracking Overlay Component
- * Renders animated tracking corners, bounding lines, and real-time visual pixel measurements
- * over the video viewport. Pointer events are disabled to avoid blocking video.
+ * Renders animated tracking corners, bounding lines, real-time positioning guidance,
+ * 3-2-1 auto-scan countdown indicators, and packet hunting FIND mode statuses.
  */
-export default function TrackingOverlay({ box, measurements, status, videoWidth, videoHeight }) {
+export default function TrackingOverlay({ 
+  box, 
+  measurements, 
+  status, 
+  isFindMode, 
+  countdownVal, 
+  countdownInterrupted,
+  videoWidth, 
+  videoHeight 
+}) {
   if (!box || !videoWidth || !videoHeight) {
     return (
       <div style={overlayContainerStyle}>
         <div style={searchingBoxStyle}>
           <div className="animate-radar" style={scanningCircleStyle}>✦</div>
-          <span style={searchingTextStyle}>SEARCHING FOR SUSPICIOUS PACKAGING...</span>
+          <span style={searchingTextStyle}>
+            {isFindMode ? 'LOOKING FOR THE SUSPICIOUS PACKET...' : 'PLACE SNACK HERE 👀'}
+          </span>
+          {isFindMode && (
+            <span style={subHintStyle}>Move the packet back into view 👀</span>
+          )}
         </div>
       </div>
     );
@@ -24,11 +38,60 @@ export default function TrackingOverlay({ box, measurements, status, videoWidth,
   const heightPct = (box.height / videoHeight) * 100;
 
   const isReady = status === 'CAPTURE_READY';
-  const strokeColor = isReady ? 'var(--pastel-green)' : 'var(--pastel-coral)';
-  const nodeBg = isReady ? '#16a34a' : '#ff6b52';
+  const isLost = status === 'LOST';
+
+  const strokeColor = isLost 
+    ? 'var(--pastel-coral)' 
+    : isReady 
+      ? 'var(--pastel-green)' 
+      : 'var(--pastel-yellow)';
+
+  const nodeBg = isLost ? '#ff4d4d' : isReady ? '#16a34a' : '#eab308';
+
+  // Guidance badge text
+  let badgeText = '◯ PACKET DETECTED 👀';
+  if (isLost) {
+    badgeText = '❓ WHERE DID IT GO?';
+  } else if (isFindMode) {
+    badgeText = '🎯 TARGET FOUND 👀';
+  } else if (countdownVal !== null && countdownVal > 0) {
+    badgeText = `HOLD STILL... ${countdownVal}`;
+  } else if (countdownVal === 0) {
+    badgeText = 'SNAP! 📸';
+  } else if (countdownInterrupted) {
+    badgeText = 'WHOOPS — HOLD STILL 👀';
+  } else if (isReady) {
+    badgeText = '● PERFECT. HOLD STILL...';
+  } else if (measurements?.guidanceHint) {
+    badgeText = measurements.guidanceHint;
+  }
 
   return (
     <div style={overlayContainerStyle}>
+      {/* 3-2-1 Countdown Large Center Overlay */}
+      {countdownVal !== null && (
+        <div style={countdownCenterStyle}>
+          <div style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: countdownVal === 0 ? '48px' : '72px',
+            fontWeight: 800,
+            color: '#ffffff',
+            textShadow: '0 4px 20px rgba(0,0,0,0.6)',
+            animation: 'pulse 0.4s ease-out'
+          }}>
+            {countdownVal === 0 ? 'SNAP! 📸' : countdownVal}
+          </div>
+          <div style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: '14px',
+            fontWeight: 700,
+            color: 'var(--pastel-yellow)'
+          }}>
+            AUTO SCANNING PACKET...
+          </div>
+        </div>
+      )}
+
       {/* Bounding Box Container */}
       <div style={{
         position: 'absolute',
@@ -36,9 +99,9 @@ export default function TrackingOverlay({ box, measurements, status, videoWidth,
         top: `${topPct}%`,
         width: `${widthPct}%`,
         height: `${heightPct}%`,
-        border: `2px dashed ${strokeColor}`,
-        borderRadius: '16px',
-        boxShadow: isReady ? '0 0 20px rgba(115, 207, 166, 0.4)' : '0 0 20px rgba(255, 141, 122, 0.4)',
+        border: `3px dashed ${strokeColor}`,
+        borderRadius: '18px',
+        boxShadow: isReady ? '0 0 25px rgba(115, 207, 166, 0.5)' : '0 0 20px rgba(255, 141, 122, 0.4)',
         transition: 'all 0.1s linear',
         pointerEvents: 'none'
       }}>
@@ -54,23 +117,29 @@ export default function TrackingOverlay({ box, measurements, status, videoWidth,
         <div style={{ ...midNodeStyle, left: '-5px', top: '50%', transform: 'translateY(-50%)', background: nodeBg }} />
         <div style={{ ...midNodeStyle, right: '-5px', top: '50%', transform: 'translateY(-50%)', background: nodeBg }} />
 
-        {/* Live Packet Label Badge */}
+        {/* Live Packet Guidance Label Badge */}
         <div style={{
           position: 'absolute',
-          top: '-32px',
+          top: '-34px',
           left: '50%',
           transform: 'translateX(-50%)',
-          background: isReady ? 'var(--pastel-mint)' : 'var(--pastel-yellow)',
+          background: isLost 
+            ? 'var(--pastel-peach)' 
+            : isFindMode 
+              ? 'var(--pastel-yellow)' 
+              : isReady 
+                ? 'var(--pastel-mint)' 
+                : 'var(--pastel-blue)',
           color: 'var(--text-dark)',
           border: '1.5px solid var(--text-dark)',
           borderRadius: '999px',
-          padding: '2px 10px',
+          padding: '3px 12px',
           fontFamily: 'var(--font-body)',
           fontWeight: 700,
-          fontSize: '11px',
+          fontSize: '12px',
           whiteSpace: 'nowrap'
         }}>
-          {isReady ? '● PACKET TRACKED' : '◯ PACKET DETECTED 👀'}
+          {badgeText}
         </div>
 
         {/* Measurements Tag at Bottom */}
@@ -80,7 +149,7 @@ export default function TrackingOverlay({ box, measurements, status, videoWidth,
             bottom: '-34px',
             left: '50%',
             transform: 'translateX(-50%)',
-            background: 'rgba(255, 255, 255, 0.9)',
+            background: 'rgba(255, 255, 255, 0.95)',
             border: '1px solid rgba(0,0,0,0.1)',
             borderRadius: '12px',
             padding: '3px 8px',
@@ -117,7 +186,7 @@ const searchingBoxStyle = {
   flexDirection: 'column',
   alignItems: 'center',
   justify: 'center',
-  gap: '12px'
+  gap: '8px'
 };
 
 const scanningCircleStyle = {
@@ -128,12 +197,31 @@ const scanningCircleStyle = {
 const searchingTextStyle = {
   fontFamily: 'var(--font-body)',
   fontWeight: 700,
-  fontSize: '13px',
+  fontSize: '14px',
   color: '#ffffff',
-  background: 'rgba(32, 36, 43, 0.6)',
-  padding: '6px 14px',
+  background: 'rgba(32, 36, 43, 0.75)',
+  padding: '8px 18px',
   borderRadius: '999px',
   backdropFilter: 'blur(8px)'
+};
+
+const subHintStyle = {
+  fontFamily: 'var(--font-body)',
+  fontSize: '12px',
+  color: 'var(--pastel-yellow)',
+  fontWeight: 600
+};
+
+const countdownCenterStyle = {
+  position: 'absolute',
+  inset: 0,
+  zIndex: 25,
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justify: 'center',
+  background: 'rgba(10, 14, 22, 0.45)',
+  backdropFilter: 'blur(3px)'
 };
 
 const cornerNodeStyle = {

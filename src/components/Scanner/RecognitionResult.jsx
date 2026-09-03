@@ -1,7 +1,11 @@
-import React from 'react';
-import { Sparkles, AlertTriangle, RefreshCw, X } from 'lucide-react';
+import React, { useState } from 'react';
+import ShakeAnalyzer from './ShakeAnalyzer';
+import { Sparkles, AlertTriangle, RefreshCw, X, Mic } from 'lucide-react';
 
 export default function RecognitionResult({ result, measurements, onRetry, onClose }) {
+  const [showShakeAnalyzer, setShowShakeAnalyzer] = useState(false);
+  const [audioMetrics, setAudioMetrics] = useState(null);
+
   if (!result) return null;
 
   // Handle No Packet Detected case
@@ -39,7 +43,7 @@ export default function RecognitionResult({ result, measurements, onRetry, onClo
         <h2 style={headlineStyle}>The snack scientists are currently unavailable.</h2>
         
         <p style={subtextStyle}>
-          {result.message || 'Unable to connect to Gemini Vision service at this moment.'}
+          {result.message || 'Unable to connect to Groq Vision service at this moment.'}
         </p>
 
         <div style={{ display: 'flex', gap: '12px', width: '100%', marginTop: '16px' }}>
@@ -52,21 +56,44 @@ export default function RecognitionResult({ result, measurements, onRetry, onClo
     );
   }
 
-  // Dynamic Humor Line Generator
-  const getHumorMessage = (cat, conf, brand) => {
-    const categoryLower = (cat || '').toLowerCase();
+  // Render Shake Analyzer Modal when user starts Shake Test
+  if (showShakeAnalyzer) {
+    return (
+      <ShakeAnalyzer
+        onComplete={(metrics) => {
+          setAudioMetrics(metrics);
+          setShowShakeAnalyzer(false);
+        }}
+        onClose={() => setShowShakeAnalyzer(false)}
+      />
+    );
+  }
+
+  // Calculate Combined Air Estimate
+  const cameraAir = measurements?.cameraAirEstimate || 65;
+  const audioAir = audioMetrics?.audioAirEstimate;
+  
+  const combinedAir = audioAir != null 
+    ? Math.round(cameraAir * 0.4 + audioAir * 0.6)
+    : cameraAir;
+  
+  const combinedContent = 100 - combinedAir;
+
+  // Dynamic Humor Line Generator based on combined telemetry
+  const getHumorMessage = () => {
+    if (audioMetrics) {
+      if (audioMetrics.audioAirEstimate > 75) return "That packet is sounding suspiciously hollow. 💨";
+      if (audioMetrics.shakeState === 'STRONG SHAKE') return "The snack scientists hear pure chaotic energy! ⚡";
+      if (combinedContent > 50) return "Dense snack energy detected. Solid matter confirmed! 🍪";
+      return "Okay... there's definitely something moving in there. 🍿";
+    }
+
+    const categoryLower = (result.category || '').toLowerCase();
     if (categoryLower.includes('chip') || categoryLower.includes('crisp')) {
-      if (conf > 0.9) return "Congratulations. It appears to be actual chips (and 70% nitrogen air)! 🍿";
-      return "Suspiciously chip-like. Handle with financial caution.";
+      return "Congratulations. It appears to be actual chips (and nitrogen air)! 🍿";
     }
     if (categoryLower.includes('biscuit') || categoryLower.includes('cookie')) {
       return "Good news: this packet contains solid matter, not just vacuum air! 🍪";
-    }
-    if (categoryLower.includes('chocolate') || categoryLower.includes('candy')) {
-      return "High sugar telemetry locked! Prepare for serotonin rush. 🍫";
-    }
-    if (categoryLower.includes('noodle') || categoryLower.includes('ramen')) {
-      return "Emergency student survival package identified! 🍜";
     }
     return "Good news: this is probably not just air. Proceed to consume!";
   };
@@ -110,7 +137,7 @@ export default function RecognitionResult({ result, measurements, onRetry, onClo
       {/* Main Identified Product Name */}
       <h2 style={{
         fontFamily: 'var(--font-display)',
-        fontSize: '28px',
+        fontSize: '26px',
         fontWeight: 700,
         color: 'var(--text-dark)',
         textAlign: 'center',
@@ -120,68 +147,100 @@ export default function RecognitionResult({ result, measurements, onRetry, onClo
       </h2>
 
       {/* Brand & Category Tags */}
-      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '12px' }}>
         {result.brand && (
-          <span className="sticker-badge" style={{ background: 'var(--pastel-yellow)', fontSize: '12px' }}>
+          <span className="sticker-badge" style={{ background: 'var(--pastel-yellow)', fontSize: '11px' }}>
             BRAND: {result.brand}
           </span>
         )}
-        <span className="sticker-badge" style={{ background: 'var(--pastel-blue)', fontSize: '12px' }}>
+        <span className="sticker-badge" style={{ background: 'var(--pastel-blue)', fontSize: '11px' }}>
           CAT: {result.category}
         </span>
-        <span className="sticker-badge" style={{ background: 'var(--pastel-peach)', fontSize: '12px' }}>
+        <span className="sticker-badge" style={{ background: 'var(--pastel-peach)', fontSize: '11px' }}>
           CONFIDENCE: {confidencePct}%
         </span>
       </div>
 
       {/* Dynamic AIR WORLD Humor Message */}
       <div style={{
-        padding: '12px 16px',
+        padding: '10px 14px',
         borderRadius: '16px',
         background: 'rgba(255, 232, 154, 0.4)',
         border: '1.5px solid var(--text-dark)',
         fontFamily: 'var(--font-handwritten)',
-        fontSize: '20px',
+        fontSize: '19px',
         fontWeight: 700,
         color: 'var(--text-dark)',
         textAlign: 'center',
-        margin: '8px 0 16px 0',
+        margin: '4px 0 12px 0',
         width: '100%'
       }}>
-        "{getHumorMessage(result.category, result.confidence, result.brand)}"
+        "{getHumorMessage()}"
       </div>
 
-      {/* Telemetry Stats Grid */}
+      {/* Real Geometric & Combined Telemetry Grid */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: '8px',
+        gridTemplateColumns: audioMetrics ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)',
+        gap: '6px',
         width: '100%',
-        margin: '8px 0 20px 0',
-        background: 'rgba(255,255,255,0.7)',
-        padding: '12px',
+        margin: '4px 0 14px 0',
+        background: 'rgba(255,255,255,0.85)',
+        padding: '10px',
         borderRadius: '16px',
-        border: '1px solid rgba(0,0,0,0.06)'
+        border: '1.5px solid var(--text-dark)'
       }}>
         <div style={statBoxStyle}>
-          <div style={statLabelStyle}>VISUAL WIDTH</div>
-          <div style={statValStyle}>{measurements ? `${measurements.visualWidth} px` : '240 px'}</div>
+          <div style={statLabelStyle}>AIR EST.</div>
+          <div style={statValStyle}>{combinedAir}%</div>
         </div>
+
         <div style={statBoxStyle}>
-          <div style={statLabelStyle}>VISUAL HEIGHT</div>
-          <div style={statValStyle}>{measurements ? `${measurements.visualHeight} px` : '380 px'}</div>
+          <div style={statLabelStyle}>CONTENT EST.</div>
+          <div style={statValStyle}>{combinedContent}%</div>
         </div>
+
         <div style={statBoxStyle}>
           <div style={statLabelStyle}>ASPECT RATIO</div>
           <div style={statValStyle}>{measurements ? measurements.aspectRatio : '0.63'}</div>
         </div>
+
+        {audioMetrics && (
+          <div style={statBoxStyle}>
+            <div style={statLabelStyle}>SHAKE CONF.</div>
+            <div style={statValStyle}>{audioMetrics.shakeConfidence}%</div>
+          </div>
+        )}
+      </div>
+
+      {/* Experimental Disclaimer */}
+      <div style={{
+        fontFamily: 'var(--font-body)',
+        fontSize: '10px',
+        fontWeight: 600,
+        color: 'var(--text-muted)',
+        textAlign: 'center',
+        marginBottom: '14px'
+      }}>
+        * Experimental estimate based on packet geometry {audioMetrics ? '+ sound analysis' : ''}.
       </div>
 
       {/* Action Buttons */}
-      <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
-        <button className="glass-button" onClick={onRetry} style={{ flex: 1 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+        {!audioMetrics && (
+          <button 
+            className="glass-button" 
+            onClick={() => setShowShakeAnalyzer(true)} 
+            style={{ width: '100%', background: 'linear-gradient(135deg, var(--pastel-yellow) 0%, var(--pastel-peach) 100%)', color: 'var(--text-dark)', border: '2px solid var(--text-dark)' }}
+          >
+            <Mic size={18} />
+            START SHAKE TEST 🎙️
+          </button>
+        )}
+
+        <button className="glass-button" onClick={onRetry} style={{ width: '100%' }}>
           <RefreshCw size={18} />
-          SCAN ANOTHER
+          SCAN ANOTHER SNACK
         </button>
       </div>
     </div>
@@ -189,7 +248,7 @@ export default function RecognitionResult({ result, measurements, onRetry, onClo
 }
 
 const modalStyle = {
-  padding: '28px',
+  padding: '24px',
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
@@ -203,15 +262,15 @@ const modalStyle = {
 };
 
 const iconBadgeStyle = (bg) => ({
-  width: '64px',
-  height: '64px',
+  width: '56px',
+  height: '56px',
   borderRadius: '50%',
   background: bg,
   display: 'flex',
   alignItems: 'center',
   justify: 'center',
-  fontSize: '32px',
-  marginBottom: '12px',
+  fontSize: '28px',
+  marginBottom: '10px',
   border: '2px solid var(--text-dark)'
 });
 
@@ -234,19 +293,22 @@ const subtextStyle = {
 };
 
 const statBoxStyle = {
-  textAlign: 'center'
+  textAlign: 'center',
+  background: '#f8fafc',
+  padding: '6px 4px',
+  borderRadius: '8px'
 };
 
 const statLabelStyle = {
   fontFamily: 'var(--font-body)',
-  fontSize: '9px',
+  fontSize: '8.5px',
   fontWeight: 700,
   color: 'var(--text-muted)'
 };
 
 const statValStyle = {
   fontFamily: 'var(--font-display)',
-  fontSize: '13px',
+  fontSize: '12.5px',
   fontWeight: 700,
   color: 'var(--text-dark)',
   marginTop: '2px'

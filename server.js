@@ -4,7 +4,6 @@ import multer from 'multer';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { GoogleGenAI } from '@google/genai';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,62 +23,61 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
-// Safe diagnostic logging on startup (NEVER printing the key itself)
-console.log('Server port:', process.env.PORT || 3001);
-console.log('Gemini API key configured:', Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim() !== ''));
+// Safe diagnostic logging on startup (NEVER printing secret keys)
+console.log('Server port:', PORT);
+console.log('Groq API key configured:', Boolean(process.env.GROQ_API_KEY && process.env.GROQ_API_KEY.trim() !== ''));
+console.log('Groq Vision model:', process.env.GROQ_VISION_MODEL || 'qwen/qwen3.6-27b');
 
-// Helper to initialize Gemini SDK client
-const getGeminiClient = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey.trim() === '' || apiKey === 'your_gemini_api_key_here') {
+// Helper to check Groq API configuration
+const getGroqApiKey = () => {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey || apiKey.trim() === '' || apiKey === 'your_groq_api_key_here') {
     return null;
   }
-  return new GoogleGenAI({ apiKey });
+  return apiKey.trim();
 };
 
 // POST /api/recognize-snack
 app.post('/api/recognize-snack', upload.single('image'), async (req, res) => {
+  console.log('[AIR WORLD SERVER] Recognition request received');
+
   try {
     if (!req.file) {
-      console.warn('[AIR WORLD Server] Upload request received without image file.');
+      console.warn('[AIR WORLD SERVER] Upload request received without image file.');
       return res.status(400).json({
-        error: 'No image file uploaded.',
+        error: 'Invalid snack image. No image file uploaded.',
         packetDetected: false
       });
     }
 
-    console.log(`[AIR WORLD Server] Image file received: ${Math.round(req.file.size / 1024)} KB, mime: ${req.file.mimetype}`);
+    console.log(`[AIR WORLD SERVER] Image received (${Math.round(req.file.size / 1024)} KB, mime: ${req.file.mimetype})`);
 
-    const ai = getGeminiClient();
-    if (!ai) {
-      console.warn('[AIR WORLD Server] GEMINI_API_KEY is missing or unconfigured in .env');
+    const groqApiKey = getGroqApiKey();
+    if (!groqApiKey) {
+      console.warn('[AIR WORLD SERVER] GROQ_API_KEY is missing or unconfigured in .env');
       return res.status(503).json({
-        error: 'Gemini API key is not configured on the server. Please set GEMINI_API_KEY in .env file.',
+        error: 'The snack scientists are currently unavailable. Groq API key is not configured on the server. Please set GROQ_API_KEY in .env file.',
         configured: false,
         packetDetected: false
       });
     }
 
-    // Convert uploaded buffer to inlineData base64 object for Gemini
-    const imagePart = {
-      inlineData: {
-        data: req.file.buffer.toString('base64'),
-        mimeType: req.file.mimetype || 'image/jpeg'
-      }
-    };
+    const mimeType = req.file.mimetype || 'image/jpeg';
+    const base64Image = req.file.buffer.toString('base64');
+    const selectedModel = process.env.GROQ_VISION_MODEL || 'qwen/qwen3.6-27b';
 
     const promptText = `
 You are AIR WORLD's universal snack recognition system.
 Analyze the provided image and determine if a packaged food or snack product is visible.
-Potential categories include chips, biscuits, chocolate, cookies, instant noodles, cereal, packaged snacks, or other packaged food items.
+Potential categories include chips, biscuits, chocolate, cookies, instant noodles, cereal, packaged snacks, namkeen, or other packaged food items.
 
 CRITICAL INSTRUCTIONS:
 - Do NOT assume a specific brand unless it is clearly visible in the image.
-- If the exact product or brand cannot be determined with confidence, do NOT hallucinate. Return generic terms like "Snack packet", "Chips", "Biscuits", or "Packaged food".
+- If the exact product or brand cannot be determined with confidence, do NOT hallucinate. Return generic terms like "Unknown packaged snack", "Chips", "Biscuits", or "Packaged food".
 - "confidence" MUST be a number between 0.0 and 1.0.
 - Set "packetDetected" to true ONLY if a packaged food/snack item is detected. If it's a hand, table, room, or non-food object, set "packetDetected" to false.
 
-Return ONLY a raw JSON object with NO markdown, NO code block formatting, matching this schema:
+Return ONLY a raw JSON object matching this schema:
 {
   "productName": "string",
   "brand": "string | null",
@@ -90,34 +88,106 @@ Return ONLY a raw JSON object with NO markdown, NO code block formatting, matchi
 }
 `;
 
-    console.log('[AIR WORLD Server] Invoking Gemini Vision API (model: gemini-2.0-flash)...');
+    console.log(`[AIR WORLD SERVER] Calling Groq Vision API (model: ${selectedModel})...`);
 
-    // Use supported vision-capable model gemini-2.0-flash
-    let response;
+    // Helper to send request to Groq API
+    const fetchGroqVision = async () => {
+      const groqReqBody = {
+        model: selectedModel,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: promptText
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:${mimeType};base64,${base64Image}`
+                }
+              }
+            ]
+          }
+        ],
+        temperature: 0.2,
+        response_format: {
+          type: 'json_object'
+        }
+      };
+
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${groqApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(groqReqBody)
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error(`[AIR WORLD SERVER] Groq API returned status ${response.status}:`, errText);
+        
+        // Fallback retry with llama-3.2-11b-vision-preview if model not found
+        if (response.status === 404 && selectedModel !== 'llama-3.2-11b-vision-preview') {
+          console.warn('[AIR WORLD SERVER] Model unavailable, retrying with fallback model llama-3.2-11b-vision-preview...');
+          groqReqBody.model = 'llama-3.2-11b-vision-preview';
+          const fallbackRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${groqApiKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(groqReqBody)
+          });
+          if (!fallbackRes.ok) {
+            throw new Error(`Groq API error (status ${fallbackRes.status})`);
+          }
+          return await fallbackRes.json();
+        }
+
+        throw new Error(`Groq API error (status ${response.status})`);
+      }
+
+      return await response.json();
+    };
+
+    // Server-side 25s Promise.race timeout protection
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('GROQ_TIMEOUT')), 25000);
+    });
+
+    let groqData;
     try {
-      response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
-        contents: [imagePart, promptText]
-      });
+      groqData = await Promise.race([
+        fetchGroqVision(),
+        timeoutPromise
+      ]);
     } catch (apiError) {
-      console.error('[AIR WORLD Server] Gemini SDK generateContent call failed:', {
-        name: apiError.name,
-        message: apiError.message,
-        status: apiError.status,
-        statusCode: apiError.statusCode || apiError.code
-      });
-      return res.status(500).json({
-        error: 'The snack scientists encountered an issue analyzing the packet.',
-        details: apiError.message || 'Gemini API call failed',
+      if (apiError.message === 'GROQ_TIMEOUT') {
+        console.warn('[AIR WORLD SERVER] Groq Vision request timed out after 25s.');
+        return res.status(504).json({
+          error: 'Groq request timed out.',
+          details: 'Server timeout after 25s',
+          packetDetected: false
+        });
+      }
+
+      console.error('[AIR WORLD SERVER] Groq API request failed:', apiError.message);
+      return res.status(502).json({
+        error: 'The snack scientists are currently unavailable.',
+        details: apiError.message || 'Groq Vision API call failed',
         packetDetected: false
       });
     }
 
-    const responseText = response.text || '';
-    console.log('[AIR WORLD Server] Gemini Vision response text received successfully.');
+    const rawContent = groqData.choices?.[0]?.message?.content || '';
+    console.log('[AIR WORLD SERVER] Groq Vision response content received successfully.');
 
-    // Clean up markdown wrapper formatting if present
-    const cleanedJson = responseText
+    // Clean up markdown code block wrapper formatting if present
+    const cleanedJson = rawContent
       .replace(/```json/gi, '')
       .replace(/```/g, '')
       .trim();
@@ -126,8 +196,8 @@ Return ONLY a raw JSON object with NO markdown, NO code block formatting, matchi
     try {
       parsedResult = JSON.parse(cleanedJson);
     } catch (parseError) {
-      console.error('[AIR WORLD Server] Failed to parse JSON from AI response:', parseError);
-      console.error('[AIR WORLD Server] Unparseable raw text:', responseText);
+      console.error('[AIR WORLD SERVER] Failed to parse JSON from Groq response:', parseError);
+      console.error('[AIR WORLD SERVER] Unparseable raw text:', rawContent);
       return res.status(500).json({
         error: 'Malformed response received from AI recognition model.',
         details: 'JSON parse error',
@@ -136,8 +206,8 @@ Return ONLY a raw JSON object with NO markdown, NO code block formatting, matchi
     }
 
     const validatedResult = {
-      productName: parsedResult.productName || 'Unidentified Snack Packet',
-      brand: parsedResult.brand || null,
+      productName: parsedResult.productName || 'Unknown Packaged Snack',
+      brand: parsedResult.brand || 'Unknown',
       category: parsedResult.category || 'Packaged Snack',
       confidence: typeof parsedResult.confidence === 'number' 
         ? Math.min(1, Math.max(0, parsedResult.confidence))
@@ -146,11 +216,11 @@ Return ONLY a raw JSON object with NO markdown, NO code block formatting, matchi
       packetDetected: Boolean(parsedResult.packetDetected)
     };
 
-    console.log('[AIR WORLD Server] Validated Snack Result:', validatedResult);
+    console.log('[AIR WORLD SERVER] Validated Snack Result:', validatedResult);
     return res.json(validatedResult);
 
   } catch (error) {
-    console.error('[AIR WORLD Server] Server endpoint error:', {
+    console.error('[AIR WORLD SERVER] Server endpoint error:', {
       name: error.name,
       message: error.message
     });
@@ -164,13 +234,24 @@ Return ONLY a raw JSON object with NO markdown, NO code block formatting, matchi
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  const hasKey = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim() !== '');
+  const hasKey = Boolean(process.env.GROQ_API_KEY && process.env.GROQ_API_KEY.trim() !== '');
   res.json({
     status: 'online',
-    service: 'AIR WORLD Gemini API Gateway',
-    geminiConfigured: hasKey
+    service: 'AIR WORLD Groq Vision API Gateway',
+    groqConfigured: hasKey,
+    model: process.env.GROQ_VISION_MODEL || 'qwen/qwen3.6-27b'
   });
 });
+
+// Production Static File Serving
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.resolve(__dirname, 'dist')));
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+    }
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`[AIR WORLD Server] Running on http://localhost:${PORT}`);
