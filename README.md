@@ -2,17 +2,16 @@
 
 
 
-# [Project Name] 🎯
+# [AIR-WORLD] 🎯
 
 
 ## Basic Details
-### Team Name: [Name]
+### Team Name: [ENCODED]
 
 
 ### Team Members
-- Team Lead: [Name] - [College]
-- Member 2: [Name] - [College]
-- Member 3: [Name] - [College]
+- Team Lead: [Keerthana Reji] - [LBS Institute of Technology for Women]
+- Member 2: [Aiswarya N M] - [LBS Institute of Technology for Women]
 
 ### Project Description
 [AIR WORLD is an AI-powered web application that scans packaged snacks using a camera and identifies the product, brand, and category. It uses AI vision to analyze the snack packet and provides a fun and interactive scan result.]
