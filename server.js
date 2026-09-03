@@ -130,10 +130,12 @@ Return ONLY a raw JSON object matching this schema:
         const errText = await response.text();
         console.error(`[AIR WORLD SERVER] Groq API returned status ${response.status}:`, errText);
         
-        // Fallback retry with llama-3.2-11b-vision-preview if model not found
-        if (response.status === 404 && selectedModel !== 'llama-3.2-11b-vision-preview') {
-          console.warn('[AIR WORLD SERVER] Model unavailable, retrying with fallback model llama-3.2-11b-vision-preview...');
+        // Automatic fallback retry with llama-3.2-11b-vision-preview if rate limited (429), bad request (400), or missing model (404)
+        if ((response.status === 429 || response.status === 400 || response.status === 404) && selectedModel !== 'llama-3.2-11b-vision-preview') {
+          console.warn('[AIR WORLD SERVER] Retrying with fallback model llama-3.2-11b-vision-preview...');
           groqReqBody.model = 'llama-3.2-11b-vision-preview';
+          delete groqReqBody.response_format;
+
           const fallbackRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -143,6 +145,8 @@ Return ONLY a raw JSON object matching this schema:
             body: JSON.stringify(groqReqBody)
           });
           if (!fallbackRes.ok) {
+            const fallbackErr = await fallbackRes.text();
+            console.error(`[AIR WORLD SERVER] Fallback Groq API status ${fallbackRes.status}:`, fallbackErr);
             throw new Error(`Groq API error (status ${fallbackRes.status})`);
           }
           return await fallbackRes.json();

@@ -480,10 +480,10 @@ export default function CameraScanner({ isOpen, onClose }) {
               <button
                 className="glass-button"
                 onClick={handleCaptureSnack}
-                disabled={isCapturing || trackingInfo.status !== 'CAPTURE_READY'}
+                disabled={isCapturing || cameraStatus !== 'ready'}
                 style={{
-                  opacity: (isCapturing || trackingInfo.status !== 'CAPTURE_READY') ? 0.5 : 1,
-                  cursor: (isCapturing || trackingInfo.status !== 'CAPTURE_READY') ? 'not-allowed' : 'pointer',
+                  opacity: (isCapturing || cameraStatus !== 'ready') ? 0.5 : 1,
+                  cursor: (isCapturing || cameraStatus !== 'ready') ? 'not-allowed' : 'pointer',
                   padding: '10px 16px',
                   fontSize: '13px'
                 }}
