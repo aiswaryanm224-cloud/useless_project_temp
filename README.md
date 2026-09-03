@@ -15,34 +15,36 @@
 - Member 3: [Name] - [College]
 
 ### Project Description
-[2-3 lines about what your project does]
+[AIR WORLD is an AI-powered web application that scans packaged snacks using a camera and identifies the product, brand, and category. It uses AI vision to analyze the snack packet and provides a fun and interactive scan result.]
 
 ### The Problem (that doesn't exist)
-[What ridiculous problem are you solving?]
+[Sometimes, looking at a snack packet and knowing what it is just isn't enough. AIR WORLD solves the completely unnecessary problem of needing AI to identify a snack that is already sitting right in front of us.]
 
 ### The Solution (that nobody asked for)
-[How are you solving it? Keep it fun!]
+[AIR WORLD uses a camera to scan a packaged snack and sends the captured image to an AI vision model for analysis. It detects and identifies the snack while adding unnecessary but fun features such as packet tracking, automatic scanning, and humorous results]
 
 ## Technical Details
 ### Technologies/Components Used
 For Software:
-- [Languages used]
-- [Frameworks used]
-- [Libraries used]
-- [Tools used]
+- [JavaScript, HTML, CSS]
+-[React, Vite, Node.js, Express.js]
+-[Groq Vision API, Browser Camera API, Canvas API, Multer, CORS]
+-[Git, GitHub, Vercel, Render]
 
 For Hardware:
-- [List main components]
-- [List specifications]
-- [List tools required]
+- [Laptop or smartphone with camera]
+- [Built-in microphone (for experimental shake/sound interaction)]
+- [No external hardware components required]
 
 ### Implementation
 For Software:
 # Installation
-[commands]
+[git clone <repository-url> 
+cd air-world
+ npm install]
 
 # Run
-[commands]
+[npm.cmd run dev]
 
 ### Project Documentation
 For Software:
@@ -89,9 +91,8 @@ For Hardware:
 [Add any extra demo materials/links]
 
 ## Team Contributions
-- [Name 1]: [Specific contributions]
-- [Name 2]: [Specific contributions]
-- [Name 3]: [Specific contributions]
+- [Keerthana Reji]: [Team coordination, frontend development, UI/UX design, scanner interface and project presentation.]
+- [Aiswarya N M]: [AI integration, backend development, Groq Vision API integration, camera scanning functionality, API integration and deployment.]
 
 ---
 Made with ❤️ at TinkerHub Useless Projects 
