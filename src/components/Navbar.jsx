@@ -1,7 +1,6 @@
 import React from 'react';
-import { Sparkles } from 'lucide-react';
 
-export default function Navbar() {
+export default function Navbar({ onOpenScanner }) {
   return (
     <header style={{
       position: 'fixed',
@@ -59,7 +58,7 @@ export default function Navbar() {
           fontSize: '14px',
           color: 'var(--text-muted)'
         }}>
-          <a href="#scanner" style={linkStyle}>Scanner</a>
+          <a onClick={onOpenScanner} style={linkStyle}>Scanner</a>
           <a href="#how-it-works" style={linkStyle}>How it works</a>
           <a href="#about" style={linkStyle}>About</a>
         </div>
@@ -76,8 +75,9 @@ export default function Navbar() {
           color: '#15803d',
           fontFamily: 'var(--font-body)',
           fontWeight: 700,
-          fontSize: '12px'
-        }}>
+          fontSize: '12px',
+          cursor: 'pointer'
+        }} onClick={onOpenScanner}>
           <span style={{
             width: '8px',
             height: '8px',

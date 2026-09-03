@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import { Camera, Sparkles } from 'lucide-react';
 
-export default function ScannerCard() {
+export default function ScannerCard({ onOpenScanner }) {
   const [isHovered, setIsHovered] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
 
   const handleScanClick = () => {
-    setIsScanning(true);
-    setTimeout(() => {
-      setIsScanning(false);
-    }, 2400);
+    if (onOpenScanner) {
+      onOpenScanner();
+    }
   };
 
   return (
@@ -33,7 +31,7 @@ export default function ScannerCard() {
       }}
     >
       {/* Dynamic Hover Tooltip Bubble */}
-      {isHovered && !isScanning && (
+      {isHovered && (
         <div className="speech-bubble" style={{ top: '-18px', transform: 'rotate(-3deg)', background: 'var(--pastel-yellow)' }}>
           Are you REALLY sure? 👀
         </div>
@@ -54,7 +52,7 @@ export default function ScannerCard() {
         marginBottom: '20px'
       }}>
         <Sparkles size={14} />
-        {isScanning ? 'ANALYZING PACKET AIR RATIO...' : 'READY TO SCAN'}
+        READY TO SCAN
       </div>
 
       {/* Main Glass Lens Reticle Viewport */}
@@ -69,8 +67,9 @@ export default function ScannerCard() {
         display: 'flex',
         alignItems: 'center',
         justify: 'center',
-        margin: '16px 0 24px 0'
-      }}>
+        margin: '16px 0 24px 0',
+        cursor: 'pointer'
+      }} onClick={handleScanClick}>
         {/* Pulsing Concentric Outer Ring */}
         <div style={{
           position: 'absolute',
@@ -86,7 +85,7 @@ export default function ScannerCard() {
           transition: 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
           transform: isHovered ? 'scale(1.2) rotate(15deg)' : 'scale(1)'
         }}>
-          {isScanning ? '🔍' : '✦'}
+          ✦
         </div>
       </div>
 
@@ -98,7 +97,7 @@ export default function ScannerCard() {
         color: 'var(--text-muted)',
         marginBottom: '24px'
       }}>
-        {isScanning ? 'Hold snack packet steady in front of camera...' : 'Point a snack at me 👀'}
+        Point a snack at me 👀
       </p>
 
       {/* Primary CTA Button */}
@@ -108,7 +107,7 @@ export default function ScannerCard() {
         style={{ width: '100%', maxWidth: '300px' }}
       >
         <Camera size={20} />
-        {isScanning ? 'SCANNING...' : 'SCAN A SNACK'}
+        SCAN A SNACK
       </button>
     </div>
   );

@@ -6,7 +6,7 @@ import TelemetryBadges from './TelemetryBadges';
 import { YellowChipsCharacter, RedChipsCharacter, TinyChipMascot } from './SnackCharacters';
 import { Sparkles, Star } from 'lucide-react';
 
-export default function Hero() {
+export default function Hero({ onOpenScanner }) {
   return (
     <section style={{
       position: 'relative',
@@ -131,7 +131,7 @@ export default function Hero() {
 
       {/* Main Single Scanner Container */}
       <div style={{ width: '100%', maxWidth: '640px' }} id="scanner">
-        <ScannerCard />
+        <ScannerCard onOpenScanner={onOpenScanner} />
       </div>
 
       {/* Chaos Meter & How It Works Row */}
