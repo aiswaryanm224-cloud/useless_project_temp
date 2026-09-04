@@ -50,7 +50,7 @@ For Software:
 
 # Screenshots and description
 [drive link](https://drive.google.com/drive/folders/1UrGjIg6S0t_yuMgAG_Xfyud3vR3H493W?usp=sharing)
-
+*it has various steps from start to end*
 
 # Diagrams
 ![Workflow](Add your workflow/architecture diagram here)
